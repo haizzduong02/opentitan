@@ -14,7 +14,7 @@ load(
     "fpga_cw305",
     "fpga_cw310",
     "fpga_cw340",
-    "fpga_zcu104",
+
     "silicon",
     "sim_dv",
     "sim_qemu",
