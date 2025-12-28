@@ -33,6 +33,12 @@ _OTP_RMA_PATH = "{}/$(location {})".format(_PREFIX, _OTP_RMA)
 
 _FPGA_PATH_TMPL = "lowrisc_systems_{}_0.1/synth-vivado/{}"
 
+
+
+_ZCU104_TESTROM = _CW310_TESTROM
+
+_ZCU104_TESTROM_PATH = _CW310_TESTROM_PATH
+
 # Note: all of the targets are tagged with "manual" to prevent them from being
 # matched by bazel wildcards like "//...".  In order to build the bitstream,
 # you need to ask for it directly or by dependency via another rule, such as
@@ -279,6 +285,100 @@ pkg_filegroup(
     srcs = [
         ":hyperdebug",
         ":standard",
+    ],
+    tags = ["manual"],
+)
+
+# ==================== ZCU104 ====================
+fusesoc_build(
+    name = "fpga_zcu104",
+    testonly = True,
+    srcs = [
+        "//hw:rtl_files",
+        _ZCU104_TESTROM,
+        _OTP_RMA,
+    ],
+    cores = ["//hw:cores"],
+    data = ["//hw/ip/otbn:rtl_files"],
+    flags = [
+        "--BootRomInitFile=" + _ZCU104_TESTROM_PATH,
+        "--OtpMacroMemInitFile=" + _OTP_RMA_PATH,
+    ],
+    output_groups = {
+        "bitstream": [_FPGA_PATH_TMPL.format("chip_earlgrey_zcu104", "lowrisc_systems_chip_earlgrey_zcu104_0.1.bit")],
+        "mmi": [_FPGA_PATH_TMPL.format("chip_earlgrey_zcu104", "memories.mmi")],
+        "logs": [_FPGA_PATH_TMPL.format("chip_earlgrey_zcu104", "lowrisc_systems_chip_earlgrey_zcu104_0.1.runs/")],
+    },
+    systems = ["lowrisc:systems:chip_earlgrey_zcu104"],
+    tags = ["manual"],
+    target = "synth",
+)
+
+filegroup(
+    name = "fpga_zcu104_test_rom",
+    testonly = True,
+    srcs = [":fpga_zcu104"],
+    output_group = "bitstream",
+    tags = ["manual"],
+)
+
+filegroup(
+    name = "zcu104_mmi",
+    testonly = True,
+    srcs = [":fpga_zcu104"],
+    output_group = "mmi",
+    tags = ["manual"],
+)
+
+bitstream_manifest_fragment(
+    name = "earlgrey_zcu104_manifest",
+    testonly = True,
+    srcs = [":fpga_zcu104"],
+    bitstream = "bitstream",
+    design = "chip_earlgrey_zcu104",
+    memories = [
+        "rom",
+        "otp",
+        "flash0_info0",
+        "flash0_info1",
+        "flash0_info2",
+        "flash1_info0",
+        "flash1_info1",
+        "flash1_info2",
+    ],
+    memory_map_file = ":zcu104_mmi",
+    tags = ["manual"],
+)
+
+pkg_tar(
+    name = "earlgrey_zcu104_archive",
+    testonly = True,
+    srcs = [":earlgrey_zcu104_manifest"],
+    mode = "0444",
+    package_dir = "build-bin/hw/top_earlgrey/chip_earlgrey_zcu104",
+    strip_prefix = "/hw/bitstream/vivado/earlgrey_zcu104_manifest",
+    tags = ["manual"],
+)
+
+# ==================== Packaging ====================
+pkg_files(
+    name = "zcu104",
+    testonly = True,
+    srcs = [
+        ":zcu104_mmi",
+        ":fpga_zcu104_test_rom",
+    ],
+    prefix = "earlgrey/fpga_zcu104/standard",
+    tags = ["manual"],
+)
+
+pkg_filegroup(
+    name = "package",
+    testonly = True,
+    srcs = [
+        ":hyperdebug",
+        ":standard",
+        ":zcu104",  # Thêm ZCU104 vào package tổng
     ],
     tags = ["manual"],
 )
