@@ -373,7 +373,7 @@ pkg_files(
 )
 
 pkg_filegroup(
-    name = "package",
+    name = "package_all",
     testonly = True,
     srcs = [
         ":hyperdebug",
