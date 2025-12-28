@@ -9,6 +9,7 @@ package(default_visibility = ["//visibility:public"])
 TARGETS = [
     "fpga_cw310",
     "fpga_cw340",
+    "fpga_zcu104",
     "sim_dv",
     "sim_qemu",
     "sim_verilator",

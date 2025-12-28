@@ -71,6 +71,7 @@ typedef enum device_type {
    * independently of the RTL.
    */
   kDeviceSimQemu = 6,
+  kDeviceFpgaZcu104 = 7,
 } device_type_t;
 
 /**

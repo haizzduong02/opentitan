@@ -21,3 +21,10 @@ config_setting(
         "cw340": "lowrisc",
     },
 )
+
+config_setting(
+    name = "lowrisc_fpga_zcu104",
+    define_values = {
+        "cw340": "lowrisc",
+    },
+)

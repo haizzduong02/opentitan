@@ -98,6 +98,20 @@ cc_library(
 )
 
 cc_library(
+    name = "fpga_zcu104",
+    srcs = ["device_fpga_zcu104.c"],
+    deps = [
+        ":device",
+        "//sw/device/lib/base:macros",
+    ] + opentitan_if_ip(
+        "uart",
+        [":uart"],
+        [":stub"],
+    ),
+)
+
+
+cc_library(
     name = "silicon",
     srcs = ["device_silicon.c"],
     deps = [

@@ -14,6 +14,7 @@ load(
     "fpga_cw305",
     "fpga_cw310",
     "fpga_cw340",
+    "fpga_zcu104",
     "silicon",
     "sim_dv",
     "sim_qemu",
@@ -538,4 +539,136 @@ sim_dv(
     base = ":sim_dv_base",
     exec_env = "sim_dv",
     rom = "//sw/device/lib/testing/test_rom:test_rom",
+)
+
+
+###########################################################################
+# FPGA ZCU104 Environments
+###########################################################################
+fpga_zcu104(
+    name = "fpga_zcu104",
+    args = [
+        "--rcfile=",
+        "--logging=info",
+        "--interface={interface}",
+    ] + select({
+        "//ci:lowrisc_fpga_zcu104": ["--uarts=/dev/ttyACM_ZCU104_1,/dev/ttyACM_ZCU104_0"],
+        "//conditions:default": [],
+    }),
+    design = "earlgrey",
+    exec_env = "fpga_zcu104",
+    libs = [
+        "//sw/device/lib/arch:boot_stage_rom_ext",
+        "//sw/device/lib/arch:fpga_zcu104",
+        "//hw/top_earlgrey/sw/dt:fpga_zcu104",
+    ],
+    linker_script = "//sw/device/lib/testing/test_framework:ottf_ld_silicon_creator_slot_a",
+    param = {
+        "interface": "vivado",
+        "exit_success": DEFAULT_TEST_SUCCESS_MSG,
+        "exit_failure": DEFAULT_TEST_FAILURE_MSG,
+    },
+    slot_spec = EARLGREY_SLOTS,
+    test_cmd = "testing-not-supported",
+)
+
+fpga_zcu104(
+    name = "fpga_zcu104_test_rom",
+    testonly = True,
+    base = ":fpga_zcu104",
+    base_bitstream = "//hw/bitstream/zcu104:bitstream",
+    exec_env = "fpga_zcu104_test_rom",
+    mmi = "//hw/bitstream/zcu104:mmi",
+    otp = "//hw/top_earlgrey/data/otp:img_rma",
+    rom = "//sw/device/lib/testing/test_rom:test_rom",
+    test_cmd = """
+        --exec="transport init"
+        --exec="fpga load-bitstream {bitstream}"
+        --exec="bootstrap --clear-uart=true {firmware}"
+        --exec="console --non-interactive --exit-success='{exit_success}' --exit-failure='{exit_failure}'"
+        no-op
+    """,
+)
+
+fpga_zcu104(
+    name = "fpga_zcu104_rom_with_fake_keys",
+    testonly = True,
+    base = ":fpga_zcu104",
+    base_bitstream = "//hw/bitstream/zcu104:bitstream",
+    ecdsa_key = {"//sw/device/silicon_creator/rom/keys/fake/ecdsa:test_key_0_ecdsa_p256": "test_key_0"},
+    exec_env = "fpga_zcu104_rom_with_fake_keys",
+    manifest = "//sw/device/silicon_creator/rom_ext:manifest",
+    mmi = "//hw/bitstream/zcu104:mmi",
+    otp = "//hw/top_earlgrey/data/otp:img_rma",
+    rom = "//sw/device/silicon_creator/rom:mask_rom",
+    test_cmd = """
+        --exec="transport init"
+        --exec="fpga load-bitstream {bitstream}"
+        --exec="bootstrap --clear-uart=true {firmware}"
+        --exec="console --non-interactive --exit-success='{exit_success}' --exit-failure='{exit_failure}'"
+        no-op
+    """,
+)
+
+fpga_zcu104(
+    name = "fpga_zcu104_rom_ext",
+    testonly = True,
+    base = ":fpga_zcu104_rom_with_fake_keys",
+    ecdsa_key = {"//sw/device/silicon_creator/lib/ownership/keys/fake:app_prod_ecdsa": "prod_key_0"},
+    exec_env = "fpga_zcu104_rom_ext",
+    libs = [
+        "//sw/device/lib/arch:boot_stage_owner",
+        "//sw/device/lib/arch:fpga_zcu104",
+        "//hw/top_earlgrey/sw/dt:fpga_zcu104",
+    ],
+    linker_script = "//sw/device/lib/testing/test_framework:ottf_ld_silicon_owner_slot_a",
+    manifest = "//sw/device/silicon_owner:manifest",
+    otp = "//sw/device/silicon_creator/rom_ext/e2e:otp_img_secret2_locked_rma",
+    param = {
+        "interface": "vivado",
+        "exit_success": DEFAULT_TEST_SUCCESS_MSG,
+        "exit_failure": DEFAULT_TEST_FAILURE_MSG,
+        "assemble": "{rom_ext}@{rom_ext_slot_a} {firmware}@{owner_slot_a}",
+    },
+    rom_ext = "//sw/device/silicon_creator/rom_ext:rom_ext_dice_x509_slot_a",
+)
+
+# FPGA configuration used to emulate silicon targets. This rule can be used by
+# targets that require executing at the `rom_ext` stage level in flash, as well
+# as SRAM programs. Use the `fpga_zcu104_sival_rom_ext` execution environment to
+# emulate silicon targets containing a `rom_ext` stage.
+# See sw/device/tests/doc/sival/devguide.md for more details.
+fpga_zcu104(
+    name = "fpga_zcu104_sival",
+    testonly = True,
+    base = ":fpga_zcu104_rom_with_fake_keys",
+
+    # PROD keys are allowed to run across all life cycle stages. This prod key
+    # is used to enable execution across life cycle stages with a single
+    # binary.
+    ecdsa_key = {"//sw/device/silicon_creator/rom/keys/fake/ecdsa:prod_key_0_ecdsa_p256": "prod_key_0"},
+    exec_env = "fpga_zcu104_sival",
+    otp = "//hw/top_earlgrey/data/otp/emulation:otp_img_prod_manuf_personalized",
+    spx_key = {"//sw/device/silicon_creator/rom/keys/fake/spx:prod_key_0_spx": "prod_key_0"},
+    tags = ["zcu104_sival"],
+)
+
+# FPGA configuration used to emulate silicon targets containing a `rom_ext`
+# stage.
+# See `fpga_zcu104_sival` for more details.
+# Also, see sw/device/tests/doc/sival/devguide.md.
+fpga_zcu104(
+    name = "fpga_zcu104_sival_rom_ext",
+    testonly = True,
+    base = ":fpga_zcu104_rom_ext",
+    ecdsa_key = {"//sw/device/silicon_creator/lib/ownership/keys/fake:app_prod_ecdsa": "prod_key_0"},
+    exec_env = "fpga_zcu104_sival_rom_ext",
+    libs = [
+        "//sw/device/lib/arch:boot_stage_owner",
+        "//sw/device/lib/arch:fpga_zcu104",
+        "//hw/top_earlgrey/sw/dt:fpga_zcu104",
+    ],
+    otp = "//hw/top_earlgrey/data/otp/emulation:otp_img_prod_manuf_personalized",
+    rom_ext = "//sw/device/silicon_creator/rom_ext:rom_ext_dice_x509_slot_a",
+    tags = ["zcu104_sival_rom_ext"],
 )
